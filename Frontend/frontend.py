@@ -17,7 +17,7 @@ st.set_page_config(
 )
 
 # FastAPI backend URL - Update this to match your FastAPI server
-FASTAPI_URL = "http://localhost:8000"  # Change this to your FastAPI server URL
+FASTAPI_URL = "https://churn-prediction-zb7k.onrender.com"  # Change this to your FastAPI server URL
 
 # Custom CSS for modern, engaging design
 st.markdown("""
