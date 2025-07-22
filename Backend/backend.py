@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Form
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 import pickle
@@ -13,6 +14,18 @@ with open('scaler.pkl', 'rb') as scaler_file:
 
 # Initialize FastAPI app
 app = FastAPI()
+
+
+# Defining CORS 
+origins = ['https://churn-prediction-jk3twyxd4ccu3oyhmszp6t.streamlit.app']
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 def make_prediction(input_data):
     input_df = pd.DataFrame([input_data])
