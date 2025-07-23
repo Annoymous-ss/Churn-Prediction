@@ -6,6 +6,4 @@ numpy
 scikit-learn
 matplotlib
 seaborn
-plotly
 xgboost 
-streamlit 
