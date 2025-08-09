@@ -1,12 +1,10 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import requests
-import json
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
-import time
+
 
 # Configure page
 st.set_page_config(
@@ -16,10 +14,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# FastAPI backend URL - Update this to match your FastAPI server
-FASTAPI_URL = "https://churn-prediction-zb7k.onrender.com"  # Change this to your FastAPI server URL
 
-# Custom CSS for modern, engaging design
+# FastAPI backend URL 
+FASTAPI_URL = "https://churn-prediction-zb7k.onrender.com"  
+
+# Send wake-up request
+try:
+    response = requests.get(FASTAPI_URL, timeout=15)
+except requests.RequestException:
+    pass
+
+# Custom CSS 
 st.markdown("""
 <style>
     /* Import Google Fonts */
@@ -244,17 +249,21 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
+# Initialize session state variables correctly
 if 'prediction_made' not in st.session_state:
     st.session_state.prediction_made = False
 if 'churn_probability' not in st.session_state:
     st.session_state.churn_probability = 0.0
 if 'prediction_result' not in st.session_state:
     st.session_state.prediction_result = ""
+if 'predictions_count' not in st.session_state:  
+    st.session_state.predictions_count = 0
+if 'last_churn_probability' not in st.session_state:  
+    st.session_state.last_churn_probability = None
 
-# Function to make API call to FastAPI backend
+# Function to make API call to  backend
 def make_prediction_api_call(data):
-    """Make API call to FastAPI backend for prediction"""
+    """Make API call to backend for prediction"""
     try:
         response = requests.post(f"{FASTAPI_URL}/predict", json=data, timeout=30)
         if response.status_code == 200:
@@ -282,8 +291,7 @@ def validate_inputs(data):
     if data['TotalCharges'] < 0 or data['TotalCharges'] > 100000:
         errors.append("Total charges must be between 0 and 100,000")
     
-    if data['TotalCharges'] < data['MonthlyCharges']:
-        errors.append("Total charges should be at least equal to monthly charges")
+    # Removed the validation that checked if TotalCharges < MonthlyCharges since it's now auto-calculated
     
     return errors
 
@@ -382,7 +390,10 @@ with col1:
         monthly_charges = st.number_input("Monthly Charges ($)", min_value=0.0, max_value=1000.0, value=50.0, step=0.1)
     
     with charge_col2:
-        total_charges = st.number_input("Total Charges ($)", min_value=0.0, max_value=100000.0, value=600.0, step=0.1)
+        # Auto-calculate total charges 
+        total_charges = monthly_charges * tenure
+        st.metric("Total Charges (Auto-calculated)", f"${total_charges:.2f}")
+        st.caption(f"Monthly Charges × Tenure = ${monthly_charges:.2f} × {tenure} months")
 
 with col2:
     # Prediction Section
@@ -394,7 +405,7 @@ with col2:
     
     # Predict button
     if st.button("🎯 Predict Churn Risk", key="predict_btn"):
-        # Prepare data for API call (matching FastAPI model structure)
+        # data for API call 
         api_data = {
             "gender": gender,
             "SeniorCitizen": 1 if senior_citizen == "Yes" else 0,
@@ -414,7 +425,7 @@ with col2:
             "PaperlessBilling": paperless_billing,
             "PaymentMethod": payment_method,
             "MonthlyCharges": float(monthly_charges),
-            "TotalCharges": float(total_charges)
+            "TotalCharges": float(total_charges)  
         }
         
         # Validate inputs
@@ -440,12 +451,16 @@ with col2:
                     </div>
                     """, unsafe_allow_html=True)
                 else:
-                    # Store results in session state
+                    # Storing results in session state and increment counter
                     st.session_state.churn_probability = result['probability']
                     st.session_state.prediction_result = result['prediction']
+                    st.session_state.last_churn_probability = result['probability']
                     st.session_state.prediction_made = True
                     
-                    # Show success message
+                    # Incrementing predictions count only when a new prediction is made
+                    st.session_state.predictions_count += 1
+                    
+                    # Success message
                     st.markdown(f"""
                     <div class="alert-success">
                         <strong>✅ Prediction Complete!</strong><br>
@@ -458,7 +473,7 @@ with col2:
         prob = st.session_state.churn_probability
         prediction = st.session_state.prediction_result
         
-        # Determine risk level based on probability
+        # Determining risk level based on probability
         if prob < 0.3:
             risk_level = "Low"
             risk_class = "risk-low"
@@ -501,7 +516,7 @@ with col2:
                 'axis': {'range': [None, 100]},
                 'bar': {'color': risk_color},
                 'steps': [
-                    {'range': [0, 30], 'color': "#dcfce7"},
+                    {'range': [0, 30], 'color': "#dcfcdc"},
                     {'range': [30, 70], 'color': "#fef3c7"},
                     {'range': [70, 100], 'color': "#fecaca"}
                 ],
@@ -562,7 +577,7 @@ with col2:
             risk_factors.append("📧 Paperless billing")
         
         if risk_factors:
-            for factor in risk_factors[:6]:  # Show top 6 risk factors
+            for factor in risk_factors[:6]:  # Shows top 6 risk factors
                 st.markdown(f"• {factor}")
         else:
             st.markdown("• ✅ No major risk factors identified")
@@ -576,7 +591,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Enhanced Sidebar with API information and controls
+# Sidebar with API information and controls
 with st.sidebar:
     st.markdown("## 🎛️ Advanced Controls")
     
@@ -607,7 +622,7 @@ with st.sidebar:
     with st.expander("📊 Data Export"):
         if st.session_state.prediction_made:
             if st.button("Export Prediction Results"):
-                # Create detailed prediction data for export
+                # Detailed prediction data for export
                 prediction_data = {
                     'Timestamp': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
                     'Gender': [gender],
@@ -680,17 +695,16 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"❌ Health check failed: {str(e)}")
     
-    # Quick stats (placeholder - you could make these dynamic)
+    # Session Stats 
     st.markdown("## 📈 Session Stats")
-    
     col1, col2 = st.columns(2)
+    
     with col1:
-        predictions_count = 1 if st.session_state.prediction_made else 0
-        st.metric("Predictions Made", predictions_count)
+        st.metric("Predictions Made", st.session_state.predictions_count)
     
     with col2:
-        if st.session_state.prediction_made:
-            accuracy_display = f"{st.session_state.churn_probability:.1%}"
+        if st.session_state.last_churn_probability is not None:
+            accuracy_display = f"{st.session_state.last_churn_probability:.1%}"
         else:
             accuracy_display = "N/A"
         st.metric("Last Probability", accuracy_display)
