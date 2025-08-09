@@ -26,8 +26,8 @@ This project predicts whether a customer is likely to churn from a telecom servi
 
 ## 🌐 Web App Link
 
-👉 [**Try the Web App Here**](#)  
-_(🔗 Ihttps://churn-prediction-jk3twyxd4ccu3oyhmszp6t.streamlit.app/)_
+👉 **Try the Web App Here**
+_🔗 [**https://churn-prediction-jk3twyxd4ccu3oyhmszp6t.streamlit.app/**](#)
 
 ---
 
